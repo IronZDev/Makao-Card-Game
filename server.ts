@@ -94,7 +94,7 @@ function addEvent(game: GameState, type: GameEvent['type'], playerId?: string, c
 function checkBotStopMakao(game: GameState, bot: Player) {
   const chance = bot.difficulty === 'hard' ? 0.9 : (bot.difficulty === 'medium' ? 0.4 : 0.1);
   game.players.forEach(p => {
-    if (p.id !== bot.id && p.hand.length === 1 && !p.isMakao) {
+    if (p.id !== bot.id && p.hand.length === 1 && !p.isMakao && (!p.makaoTime || Date.now() - p.makaoTime > 10000)) {
       if (Math.random() < chance) {
         // Penalty for not saying Makao
         for (let i = 0; i < 5; i++) {
@@ -177,6 +177,9 @@ function executeBotTurn(game: GameState) {
 
     // Remove cards from hand
     bot.hand = bot.hand.filter(c => c.rank !== cardToPlay.rank);
+    if (bot.hand.length === 1) {
+      bot.makaoTime = Date.now();
+    }
     
     // Add to discard pile
     game.discardPile.push(...cardsToPlay);
@@ -267,6 +270,9 @@ function executeBotTurn(game: GameState) {
         
         // Bot plays the drawn card immediately
         bot.hand = bot.hand.filter(c => c.id !== drawnCard!.id);
+        if (bot.hand.length === 1) {
+          bot.makaoTime = Date.now();
+        }
         game.discardPile.push(drawnCard);
         addEvent(game, 'PLAY_CARDS', bot.id, [drawnCard], 'Played drawn card');
         
@@ -564,6 +570,9 @@ wss.on("connection", (ws) => {
 
         // Remove cards from hand
         player.hand = player.hand.filter(c => !cardIds.includes(c.id));
+        if (player.hand.length === 1) {
+          player.makaoTime = Date.now();
+        }
         
         // Add cards to discard pile
         game.discardPile.push(...cardsToPlay);
@@ -671,7 +680,7 @@ wss.on("connection", (ws) => {
 
     if (message.type === 'STOP_MAKAO') {
       const target = game.players.find(p => p.id === message.targetPlayerId);
-      if (target && target.hand.length === 1 && !target.isMakao) {
+      if (target && target.hand.length === 1 && !target.isMakao && (!target.makaoTime || Date.now() - target.makaoTime > 10000)) {
         addEvent(game, 'STOP_MAKAO', currentPlayerId, undefined, `Caught ${target.name} not saying Makao`);
         // Penalty for not saying Makao: draw 5 cards
         for (let i = 0; i < 5; i++) {

@@ -17,6 +17,7 @@ interface Props {
 export const GameScreen = ({ gameState, playerId, sendMessage, onPlayCards }: Props) => {
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [timeLeft, setTimeLeft] = useState<number>(60);
+  const [now, setNow] = useState<number>(Date.now());
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [localHandOrder, setLocalHandOrder] = useState<string[]>([]);
@@ -55,10 +56,12 @@ export const GameScreen = ({ gameState, playerId, sendMessage, onPlayCards }: Pr
     const interval = setInterval(() => {
       const remaining = Math.max(0, Math.floor((gameState.turnEndTime! - Date.now()) / 1000));
       setTimeLeft(remaining);
+      setNow(Date.now());
     }, 1000);
     
     // Initial calculation
     setTimeLeft(Math.max(0, Math.floor((gameState.turnEndTime - Date.now()) / 1000)));
+    setNow(Date.now());
 
     return () => clearInterval(interval);
   }, [gameState.turnEndTime]);
@@ -290,10 +293,10 @@ export const GameScreen = ({ gameState, playerId, sendMessage, onPlayCards }: Pr
                   Makao!
                 </button>
               )}
-              {gameState.players.some(p => p.hand.length === 1 && !p.isMakao && p.id !== playerId) && (
+              {gameState.players.some(p => p.hand.length === 1 && !p.isMakao && p.id !== playerId && (!p.makaoTime || now - p.makaoTime > 10000)) && (
                 <button 
                   onClick={() => {
-                    const target = gameState.players.find(p => p.hand.length === 1 && !p.isMakao && p.id !== playerId);
+                    const target = gameState.players.find(p => p.hand.length === 1 && !p.isMakao && p.id !== playerId && (!p.makaoTime || now - p.makaoTime > 10000));
                     if (target) sendMessage({ type: 'STOP_MAKAO', targetPlayerId: target.id });
                   }}
                   className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-black px-4 py-2 rounded-lg uppercase italic border border-white/10"

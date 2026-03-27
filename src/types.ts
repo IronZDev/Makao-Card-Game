@@ -18,6 +18,7 @@ export interface Player {
   hand: Card[];
   isReady: boolean;
   isMakao: boolean;
+  makaoTime?: number;
   isBot?: boolean;
   difficulty?: 'easy' | 'medium' | 'hard';
   wins?: number;
