@@ -25,7 +25,7 @@ Built with React, WebSockets, and Tailwind CSS, this project features a fully sy
 
 | Game Lobby | Active Gameplay |
 | :---: | :---: |
-| <img width="2559" height="1328" alt="image" src="https://github.com/user-attachments/assets/af1b0025-6182-4050-9e18-36d69e593127" /> | <img width="2559" height="1336" alt="image" src="https://github.com/user-attachments/assets/0228640e-d5cd-4ffa-8716-4eb490893ee7" /> |
+| <img src="https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=600&auto=format&fit=crop" width="400" alt="Lobby Placeholder" /> | <img src="https://images.unsplash.com/photo-1605806616949-1e87b487cb2a?q=80&w=600&auto=format&fit=crop" width="400" alt="Gameplay Placeholder" /> |
 | *Create a room, invite friends, and configure rules.* | *Drag & drop cards, call Makao, and track history.* |
 
 ---
