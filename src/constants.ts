@@ -11,7 +11,7 @@ export const DEFAULT_RULES: GameRules = {
   skipTurnsOn4: true,
   requestSuitOnAce: true,
   requestRankOnJack: true,
-  jokerCount: 0,
+  jokerCount: 3,
   queenOfSpadesCancelsBattleCards: true,
   queenOfHeartsCancelsBattleCards: false,
 };

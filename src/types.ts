@@ -24,6 +24,8 @@ export interface Player {
   wins?: number;
   isConnected?: boolean;
   skipTurns?: number;
+  isFinished?: boolean;
+  finishedRank?: number;
 }
 
 export interface GameRules {
@@ -66,6 +68,7 @@ export interface GameState {
   skipPenalty: number;
   hasDrawnCard?: boolean;
   winner: string | null;
+  loser?: string | null;
   rules: GameRules;
   turnEndTime?: number;
   history: GameEvent[];

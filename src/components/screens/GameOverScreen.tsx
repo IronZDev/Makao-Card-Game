@@ -35,10 +35,20 @@ export const GameOverScreen = ({ gameState, playerId, sendMessage }: Props) => {
         </p>
 
         <div className="flex flex-col gap-2 mb-8 text-left bg-slate-800/50 p-4 rounded-xl">
-          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Players</h3>
-          {gameState.players.map(p => (
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Standings</h3>
+          {[...gameState.players].sort((a, b) => {
+            if (a.finishedRank && b.finishedRank) return a.finishedRank - b.finishedRank;
+            if (a.finishedRank) return -1;
+            if (b.finishedRank) return 1;
+            return 0;
+          }).map(p => (
             <div key={p.id} className="flex justify-between items-center">
-              <span className="text-slate-200">{p.name} {p.id === playerId ? '(You)' : ''}</span>
+              <span className="text-slate-200">
+                <span className="font-mono text-yellow-500 mr-2">
+                  {p.finishedRank ? `${p.finishedRank}.` : 'Last'}
+                </span>
+                {p.name} {p.id === playerId ? '(You)' : ''}
+              </span>
               <span className={`text-sm font-bold ${p.isReady ? 'text-green-400' : 'text-slate-500'}`}>
                 {p.isReady ? 'Ready' : 'Waiting...'}
               </span>

@@ -22,7 +22,7 @@ export const GameScreen = ({ gameState, playerId, sendMessage, onPlayCards }: Pr
   const [showHistory, setShowHistory] = useState(false);
   const [localHandOrder, setLocalHandOrder] = useState<string[]>([]);
   const currentPlayer = gameState.players.find(p => p.id === playerId);
-  const isMyTurn = gameState.players[gameState.currentPlayerIndex].id === playerId;
+  const isMyTurn = gameState.players[gameState.currentPlayerIndex].id === playerId && !currentPlayer?.isFinished;
   const topCard = gameState.discardPile[gameState.discardPile.length - 1];
   const hasValidMove = currentPlayer?.hand.some(card => isValidMove(card, topCard, gameState));
 
@@ -171,7 +171,12 @@ export const GameScreen = ({ gameState, playerId, sendMessage, onPlayCards }: Pr
                 <div className={`flex flex-col items-center gap-2 ${isActive ? 'scale-110' : 'opacity-70'}`}>
                   <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full border-4 flex items-center justify-center bg-slate-800 relative ${isActive ? 'border-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.5)]' : 'border-white/10'}`}>
                     {p.isBot ? <Bot className="w-6 h-6 md:w-8 md:h-8 text-slate-400" /> : <User className="w-6 h-6 md:w-8 md:h-8" />}
-                    {p.isMakao && (
+                    {p.isFinished && (
+                      <div className="absolute -top-2 -right-2 bg-yellow-500 text-black text-[10px] font-black px-2 py-1 rounded-full border-2 border-white uppercase italic">
+                        {p.finishedRank}{p.finishedRank === 1 ? 'st' : p.finishedRank === 2 ? 'nd' : p.finishedRank === 3 ? 'rd' : 'th'} Place
+                      </div>
+                    )}
+                    {!p.isFinished && p.isMakao && (
                       <div className="absolute -top-2 -right-2 bg-red-500 text-[10px] font-black px-2 py-1 rounded-full border-2 border-white uppercase italic">Makao</div>
                     )}
                     {p.skipTurns !== undefined && p.skipTurns > 0 && (
@@ -214,7 +219,7 @@ export const GameScreen = ({ gameState, playerId, sendMessage, onPlayCards }: Pr
                 )}
               </div>
               <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-widest text-emerald-400 whitespace-nowrap">
-                {gameState.hasDrawnCard ? 'Pass Turn' : gameState.skipPenalty > 0 ? `Skip ${gameState.skipPenalty} Turn${gameState.skipPenalty > 1 ? 's' : ''}` : gameState.drawPenalty > 0 ? `Draw ${gameState.drawPenalty}` : 'Draw Card'}
+                {gameState.hasDrawnCard ? (gameState.drawPenalty > 1 ? `Take ${gameState.drawPenalty - 1} Penalty` : 'Pass Turn') : gameState.skipPenalty > 0 ? `Skip ${gameState.skipPenalty} Turn${gameState.skipPenalty > 1 ? 's' : ''}` : gameState.drawPenalty > 0 ? `Draw ${gameState.drawPenalty}` : 'Draw Card'}
               </div>
             </div>
 
@@ -278,8 +283,8 @@ export const GameScreen = ({ gameState, playerId, sendMessage, onPlayCards }: Pr
               </div>
               <div>
                 <p className="text-sm font-bold">{currentPlayer?.name} (You)</p>
-                <p className={`text-[10px] font-black uppercase tracking-widest ${isMyTurn ? 'text-emerald-400' : 'text-slate-500'}`}>
-                  {isMyTurn ? "Your Turn" : "Waiting..."}
+                <p className={`text-[10px] font-black uppercase tracking-widest ${currentPlayer?.isFinished ? 'text-yellow-500' : isMyTurn ? 'text-emerald-400' : 'text-slate-500'}`}>
+                  {currentPlayer?.isFinished ? `${currentPlayer.finishedRank}${currentPlayer.finishedRank === 1 ? 'st' : currentPlayer.finishedRank === 2 ? 'nd' : currentPlayer.finishedRank === 3 ? 'rd' : 'th'} Place` : isMyTurn ? "Your Turn" : "Waiting..."}
                 </p>
               </div>
             </div>
@@ -293,17 +298,15 @@ export const GameScreen = ({ gameState, playerId, sendMessage, onPlayCards }: Pr
                   Makao!
                 </button>
               )}
-              {gameState.players.some(p => p.hand.length === 1 && !p.isMakao && p.id !== playerId && (!p.makaoTime || now - p.makaoTime > 10000)) && (
-                <button 
-                  onClick={() => {
-                    const target = gameState.players.find(p => p.hand.length === 1 && !p.isMakao && p.id !== playerId && (!p.makaoTime || now - p.makaoTime > 10000));
-                    if (target) sendMessage({ type: 'STOP_MAKAO', targetPlayerId: target.id });
-                  }}
-                  className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-black px-4 py-2 rounded-lg uppercase italic border border-white/10"
-                >
-                  Stop Makao!
-                </button>
-              )}
+              <button 
+                onClick={() => {
+                  const target = gameState.players.find(p => p.hand.length === 1 && !p.isMakao && p.id !== playerId && (!p.makaoTime || now - p.makaoTime > 10000));
+                  if (target) sendMessage({ type: 'STOP_MAKAO', targetPlayerId: target.id });
+                }}
+                className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-black px-4 py-2 rounded-lg uppercase italic border border-white/10"
+              >
+                Stop Makao!
+              </button>
             </div>
           </div>
 

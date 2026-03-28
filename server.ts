@@ -14,7 +14,7 @@ const PORT = 3000;
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 const RANKS: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-function createDeck(jokerCount: number = 0): Card[] {
+function createDeck(jokerCount: number = 3): Card[] {
   const deck: Card[] = [];
   for (const suit of SUITS) {
     for (const rank of RANKS.filter(r => r !== 'Joker')) {
@@ -35,7 +35,7 @@ const DEFAULT_RULES: GameRules = {
   skipTurnsOn4: true,
   requestSuitOnAce: true,
   requestRankOnJack: true,
-  jokerCount: 0,
+  jokerCount: 3,
   queenOfSpadesCancelsBattleCards: true,
   queenOfHeartsCancelsBattleCards: false,
 };
@@ -56,7 +56,7 @@ function broadcast(roomId: string, message: ServerMessage) {
   if (game.status === 'playing') {
     const currentPlayer = game.players[game.currentPlayerIndex];
     if (currentPlayer.isBot) {
-      setTimeout(() => executeBotTurn(game), 1500 + Math.random() * 1000);
+      setTimeout(() => executeBotTurn(game, currentPlayer.id), 1500 + Math.random() * 1000);
     }
     
     // Bots also check for "Stop Makao" with a delay to give humans a chance
@@ -113,9 +113,9 @@ function checkBotStopMakao(game: GameState, bot: Player) {
   });
 }
 
-function executeBotTurn(game: GameState) {
+function executeBotTurn(game: GameState, botId: string) {
   const bot = game.players[game.currentPlayerIndex];
-  if (!bot || !bot.isBot || game.status !== 'playing') return;
+  if (!bot || !bot.isBot || bot.id !== botId || game.status !== 'playing') return;
 
   const topCard = game.discardPile[game.discardPile.length - 1];
   const validCards = bot.hand.filter(c => isValidMove(game, c, topCard));
@@ -220,21 +220,13 @@ function executeBotTurn(game: GameState) {
       handleSpecialCard(game, card, bot.id, reqSuit, reqRank);
     });
 
-    if (bot.hand.length === 0) {
-      game.status = 'finished';
-      game.winner = bot.id;
-      addEvent(game, 'GAME_END', bot.id, undefined, `${bot.name} won the game!`);
-    } else {
-      // Say Makao?
-      if (bot.hand.length === 1) {
-        const chance = bot.difficulty === 'hard' ? 1 : (bot.difficulty === 'medium' ? 0.8 : 0.5);
-        if (Math.random() < chance) {
-          bot.isMakao = true;
-        }
+    if (bot.hand.length === 1) {
+      const chance = bot.difficulty === 'hard' ? 1 : (bot.difficulty === 'medium' ? 0.8 : 0.5);
+      if (Math.random() < chance) {
+        bot.isMakao = true;
       }
-
-      nextPlayer(game);
     }
+    checkGameEnd(game, bot);
   } else {
     // Draw card or skip turn
     if (game.skipPenalty > 0) {
@@ -244,9 +236,10 @@ function executeBotTurn(game: GameState) {
       nextPlayer(game);
     } else {
       const wasPenalty = game.drawPenalty > 0;
-      const cardsToDraw = Math.max(1, game.drawPenalty);
       let drawnCard: Card | undefined;
-      for (let i = 0; i < cardsToDraw; i++) {
+      
+      if (wasPenalty) {
+        // Draw 1 card first to check for defense
         if (game.deck.length === 0 && game.discardPile.length > 1) {
           const top = game.discardPile.pop()!;
           game.deck = game.discardPile.sort(() => Math.random() - 0.5);
@@ -256,76 +249,149 @@ function executeBotTurn(game: GameState) {
           drawnCard = game.deck.pop()!;
           bot.hand.push(drawnCard);
         }
-      }
-      game.drawPenalty = 0;
-      bot.isMakao = false;
-      addEvent(game, 'DRAW_CARDS', bot.id, undefined, `Drew ${cardsToDraw} card${cardsToDraw > 1 ? 's' : ''}`);
-      
-      const newTopCard = game.discardPile[game.discardPile.length - 1];
-      if (!wasPenalty && drawnCard && isValidMove(game, drawnCard, newTopCard)) {
-        if (drawnCard.rank === 'Joker') {
-          drawnCard.representedRank = newTopCard.rank !== 'Joker' ? newTopCard.rank : (newTopCard.representedRank || 'A');
-          drawnCard.representedSuit = newTopCard.rank !== 'Joker' ? newTopCard.suit : (newTopCard.representedSuit || 'spades');
-        }
         
-        // Bot plays the drawn card immediately
-        bot.hand = bot.hand.filter(c => c.id !== drawnCard!.id);
-        if (bot.hand.length === 1) {
-          bot.makaoTime = Date.now();
-        }
-        game.discardPile.push(drawnCard);
-        addEvent(game, 'PLAY_CARDS', bot.id, [drawnCard], 'Played drawn card');
-        
-        // Handle requestedRank logic
-        if (game.requestedRank) {
-          const firstCardRank = drawnCard.representedRank || drawnCard.rank;
-          if (firstCardRank === game.requestedRank) {
-            game.requestedRankPlayed = true;
-          } else if (firstCardRank !== 'J' && drawnCard.rank !== 'Joker') {
-            game.requestedRank = null;
-            game.requestedRankBy = null;
-            game.requestedRankPlayed = false;
-            game.requestedRankTurns = 0;
+        const newTopCard = game.discardPile[game.discardPile.length - 1];
+        if (drawnCard && isValidMove(game, drawnCard, newTopCard)) {
+          // Bot can defend!
+          addEvent(game, 'DRAW_CARDS', bot.id, undefined, `Drew 1 card to defend`);
+          
+          if (drawnCard.rank === 'Joker') {
+            drawnCard.representedRank = newTopCard.rank !== 'Joker' ? newTopCard.rank : (newTopCard.representedRank || 'A');
+            drawnCard.representedSuit = newTopCard.rank !== 'Joker' ? newTopCard.suit : (newTopCard.representedSuit || 'spades');
           }
-        }
-        
-        game.requestedSuit = null;
-        
-        let reqSuit: Suit | undefined;
-        let reqRank: Rank | undefined;
-        if (drawnCard.rank === 'A') {
-          const counts = bot.hand.reduce((acc, c) => {
-            acc[c.suit] = (acc[c.suit] || 0) + 1;
-            return acc;
-          }, {} as Record<Suit, number>);
-          reqSuit = (Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] as Suit) || 'hearts';
-        } else if (drawnCard.rank === 'J') {
-          const validRanks = bot.hand.map(c => c.rank).filter(r => !['J', 'A', 'Q', '2', '3', '4', 'Joker'].includes(r));
-          reqRank = validRanks[0] || '5';
-        }
-        
-        handleSpecialCard(game, drawnCard, bot.id, reqSuit, reqRank);
-        
-        if (bot.hand.length === 0) {
-          game.status = 'finished';
-          game.winner = bot.id;
-          addEvent(game, 'GAME_END', bot.id, undefined, `${bot.name} won the game!`);
-        } else {
+          
+          bot.hand = bot.hand.filter(c => c.id !== drawnCard!.id);
+          if (bot.hand.length === 1) {
+            bot.makaoTime = Date.now();
+          }
+          game.discardPile.push(drawnCard);
+          addEvent(game, 'PLAY_CARDS', bot.id, [drawnCard], 'Played drawn card to defend');
+          
+          // Handle requestedRank logic
+          if (game.requestedRank) {
+            const firstCardRank = drawnCard.representedRank || drawnCard.rank;
+            if (firstCardRank === game.requestedRank) {
+              game.requestedRankPlayed = true;
+            } else if (firstCardRank !== 'J' && drawnCard.rank !== 'Joker') {
+              game.requestedRank = null;
+              game.requestedRankBy = null;
+              game.requestedRankPlayed = false;
+              game.requestedRankTurns = 0;
+            }
+          }
+          
+          game.requestedSuit = null;
+          
+          let reqSuit: Suit | undefined;
+          let reqRank: Rank | undefined;
+          if (drawnCard.rank === 'A') {
+            const counts = bot.hand.reduce((acc, c) => {
+              acc[c.suit] = (acc[c.suit] || 0) + 1;
+              return acc;
+            }, {} as Record<Suit, number>);
+            reqSuit = (Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] as Suit) || 'hearts';
+          } else if (drawnCard.rank === 'J') {
+            const validRanks = bot.hand.map(c => c.rank).filter(r => !['J', 'A', 'Q', '2', '3', '4', 'Joker'].includes(r));
+            reqRank = validRanks[0] || '5';
+          }
+          
+          handleSpecialCard(game, drawnCard, bot.id, reqSuit, reqRank);
+          
           if (bot.hand.length === 1) {
             const chance = bot.difficulty === 'hard' ? 1 : (bot.difficulty === 'medium' ? 0.8 : 0.5);
             if (Math.random() < chance) {
               bot.isMakao = true;
             }
           }
+          checkGameEnd(game, bot);
+        } else {
+          // Cannot defend, draw the rest
+          const remaining = game.drawPenalty - 1;
+          for (let i = 0; i < remaining; i++) {
+            if (game.deck.length === 0 && game.discardPile.length > 1) {
+              const top = game.discardPile.pop()!;
+              game.deck = game.discardPile.sort(() => Math.random() - 0.5);
+              game.discardPile = [top];
+            }
+            if (game.deck.length > 0) {
+              bot.hand.push(game.deck.pop()!);
+            }
+          }
+          addEvent(game, 'PENALTY', bot.id, undefined, `Took penalty of ${game.drawPenalty} cards`);
+          game.drawPenalty = 0;
+          bot.isMakao = false;
           nextPlayer(game);
         }
       } else {
-        if (wasPenalty) {
-          addEvent(game, 'PENALTY', bot.id, undefined, `Took penalty of ${cardsToDraw} cards`);
+        // Normal draw
+        if (game.deck.length === 0 && game.discardPile.length > 1) {
+          const top = game.discardPile.pop()!;
+          game.deck = game.discardPile.sort(() => Math.random() - 0.5);
+          game.discardPile = [top];
+        }
+        if (game.deck.length > 0) {
+          drawnCard = game.deck.pop()!;
+          bot.hand.push(drawnCard);
+        }
+        addEvent(game, 'DRAW_CARDS', bot.id, undefined, `Drew 1 card`);
+        bot.isMakao = false;
+        
+        const newTopCard = game.discardPile[game.discardPile.length - 1];
+        if (drawnCard && isValidMove(game, drawnCard, newTopCard)) {
+          if (drawnCard.rank === 'Joker') {
+            drawnCard.representedRank = newTopCard.rank !== 'Joker' ? newTopCard.rank : (newTopCard.representedRank || 'A');
+            drawnCard.representedSuit = newTopCard.rank !== 'Joker' ? newTopCard.suit : (newTopCard.representedSuit || 'spades');
+          }
+          
+          // Bot plays the drawn card immediately
+          bot.hand = bot.hand.filter(c => c.id !== drawnCard!.id);
+          if (bot.hand.length === 1) {
+            bot.makaoTime = Date.now();
+          }
+          game.discardPile.push(drawnCard);
+          addEvent(game, 'PLAY_CARDS', bot.id, [drawnCard], 'Played drawn card');
+          
+          // Handle requestedRank logic
+          if (game.requestedRank) {
+            const firstCardRank = drawnCard.representedRank || drawnCard.rank;
+            if (firstCardRank === game.requestedRank) {
+              game.requestedRankPlayed = true;
+            } else if (firstCardRank !== 'J' && drawnCard.rank !== 'Joker') {
+              game.requestedRank = null;
+              game.requestedRankBy = null;
+              game.requestedRankPlayed = false;
+              game.requestedRankTurns = 0;
+            }
+          }
+          
+          game.requestedSuit = null;
+          
+          let reqSuit: Suit | undefined;
+          let reqRank: Rank | undefined;
+          if (drawnCard.rank === 'A') {
+            const counts = bot.hand.reduce((acc, c) => {
+              acc[c.suit] = (acc[c.suit] || 0) + 1;
+              return acc;
+            }, {} as Record<Suit, number>);
+            reqSuit = (Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] as Suit) || 'hearts';
+          } else if (drawnCard.rank === 'J') {
+            const validRanks = bot.hand.map(c => c.rank).filter(r => !['J', 'A', 'Q', '2', '3', '4', 'Joker'].includes(r));
+            reqRank = validRanks[0] || '5';
+          }
+          
+          handleSpecialCard(game, drawnCard, bot.id, reqSuit, reqRank);
+          
+          if (bot.hand.length === 1) {
+            const chance = bot.difficulty === 'hard' ? 1 : (bot.difficulty === 'medium' ? 0.8 : 0.5);
+            if (Math.random() < chance) {
+              bot.isMakao = true;
+            }
+          }
+          checkGameEnd(game, bot);
         } else {
           addEvent(game, 'PASS_TURN', bot.id);
+          nextPlayer(game);
         }
-        nextPlayer(game);
       }
     }
   }
@@ -335,7 +401,13 @@ function executeBotTurn(game: GameState) {
 
 function nextPlayer(game: GameState) {
   game.hasDrawnCard = false;
-  game.currentPlayerIndex = (game.currentPlayerIndex + game.turnDirection + game.players.length) % game.players.length;
+  
+  let attempts = 0;
+  do {
+    game.currentPlayerIndex = (game.currentPlayerIndex + game.turnDirection + game.players.length) % game.players.length;
+    attempts++;
+    if (attempts > game.players.length) break; // Safety check
+  } while (game.players[game.currentPlayerIndex].isFinished);
   
   const currentPlayer = game.players[game.currentPlayerIndex];
   
@@ -386,6 +458,7 @@ wss.on("connection", (ws) => {
           drawPenalty: 0,
           skipPenalty: 0,
           winner: null,
+          loser: null,
           rules: message.rules ? { ...message.rules } : { ...DEFAULT_RULES },
           history: [],
         };
@@ -601,14 +674,7 @@ wss.on("connection", (ws) => {
           handleSpecialCard(game, card, player.id, message.requestedSuit, message.requestedRank);
         });
 
-        if (player.hand.length === 0) {
-          game.status = 'finished';
-          game.winner = player.id;
-          player.wins = (player.wins || 0) + 1;
-          addEvent(game, 'GAME_END', player.id, undefined, `${player.name} won the game!`);
-        } else {
-          nextPlayer(game);
-        }
+        checkGameEnd(game, player);
         broadcast(currentRoomId, { type: 'UPDATE', state: game });
       }
     }
@@ -629,9 +695,10 @@ wss.on("connection", (ws) => {
       }
 
       const wasPenalty = game.drawPenalty > 0;
-      const cardsToDraw = Math.max(1, game.drawPenalty);
       let drawnCard: Card | undefined;
-      for (let i = 0; i < cardsToDraw; i++) {
+      
+      if (wasPenalty) {
+        // Draw exactly 1 card first to check for defense
         if (game.deck.length === 0 && game.discardPile.length > 1) {
           const top = game.discardPile.pop()!;
           game.deck = game.discardPile.sort(() => Math.random() - 0.5);
@@ -641,29 +708,76 @@ wss.on("connection", (ws) => {
           drawnCard = game.deck.pop()!;
           player.hand.push(drawnCard);
         }
-      }
-      game.drawPenalty = 0;
-      player.isMakao = false;
-      
-      if (wasPenalty) {
-        addEvent(game, 'PENALTY', player.id, undefined, `Took penalty of ${cardsToDraw} cards`);
+        
+        const topCard = game.discardPile[game.discardPile.length - 1];
+        if (drawnCard && isValidMove(game, drawnCard, topCard)) {
+          // Can defend! Give them a chance to play it or pass
+          game.hasDrawnCard = true;
+          addEvent(game, 'DRAW_CARDS', player.id, undefined, `Drew 1 card to defend`);
+        } else {
+          // Cannot defend. Draw the remaining penalty cards.
+          const remaining = game.drawPenalty - 1;
+          for (let i = 0; i < remaining; i++) {
+            if (game.deck.length === 0 && game.discardPile.length > 1) {
+              const top = game.discardPile.pop()!;
+              game.deck = game.discardPile.sort(() => Math.random() - 0.5);
+              game.discardPile = [top];
+            }
+            if (game.deck.length > 0) {
+              player.hand.push(game.deck.pop()!);
+            }
+          }
+          addEvent(game, 'PENALTY', player.id, undefined, `Took penalty of ${game.drawPenalty} cards`);
+          game.drawPenalty = 0;
+          player.isMakao = false;
+          nextPlayer(game);
+        }
       } else {
-        addEvent(game, 'DRAW_CARDS', player.id, undefined, `Drew ${cardsToDraw} card${cardsToDraw > 1 ? 's' : ''}`);
+        // Normal draw
+        if (game.deck.length === 0 && game.discardPile.length > 1) {
+          const top = game.discardPile.pop()!;
+          game.deck = game.discardPile.sort(() => Math.random() - 0.5);
+          game.discardPile = [top];
+        }
+        if (game.deck.length > 0) {
+          drawnCard = game.deck.pop()!;
+          player.hand.push(drawnCard);
+        }
+        addEvent(game, 'DRAW_CARDS', player.id, undefined, `Drew 1 card`);
+        
+        const topCard = game.discardPile[game.discardPile.length - 1];
+        if (drawnCard && isValidMove(game, drawnCard, topCard)) {
+          game.hasDrawnCard = true;
+        } else {
+          player.isMakao = false;
+          nextPlayer(game);
+        }
       }
       
-      const topCard = game.discardPile[game.discardPile.length - 1];
-      if (!wasPenalty && drawnCard && isValidMove(game, drawnCard, topCard)) {
-        game.hasDrawnCard = true;
-      } else {
-        nextPlayer(game);
-      }
       broadcast(currentRoomId, { type: 'UPDATE', state: game });
     }
 
     if (message.type === 'PASS_TURN' && game.status === 'playing') {
       const player = game.players[game.currentPlayerIndex];
       if (player.id === currentPlayerId && game.hasDrawnCard) {
-        addEvent(game, 'PASS_TURN', player.id);
+        if (game.drawPenalty > 0) {
+          const remaining = game.drawPenalty - 1;
+          for (let i = 0; i < remaining; i++) {
+            if (game.deck.length === 0 && game.discardPile.length > 1) {
+              const top = game.discardPile.pop()!;
+              game.deck = game.discardPile.sort(() => Math.random() - 0.5);
+              game.discardPile = [top];
+            }
+            if (game.deck.length > 0) {
+              player.hand.push(game.deck.pop()!);
+            }
+          }
+          addEvent(game, 'PENALTY', player.id, undefined, `Took penalty of ${game.drawPenalty} cards`);
+          game.drawPenalty = 0;
+        } else {
+          addEvent(game, 'PASS_TURN', player.id);
+        }
+        player.isMakao = false;
         nextPlayer(game);
         broadcast(currentRoomId, { type: 'UPDATE', state: game });
       }
@@ -749,13 +863,24 @@ function startGame(game: GameState) {
   game.requestedRankTurns = 0;
   game.requestedSuit = null;
   game.hasDrawnCard = false;
-  game.winner = undefined;
+  
+  if (game.loser) {
+    const loserIndex = game.players.findIndex(p => p.id === game.loser);
+    game.currentPlayerIndex = loserIndex !== -1 ? loserIndex : Math.floor(Math.random() * game.players.length);
+  } else {
+    game.currentPlayerIndex = Math.floor(Math.random() * game.players.length);
+  }
+  
+  game.winner = null;
+  game.loser = null;
   
   game.players.forEach(p => {
     p.hand = [];
     p.isReady = p.isBot;
     p.isMakao = false;
     p.skipTurns = 0;
+    p.isFinished = false;
+    p.finishedRank = undefined;
     for (let i = 0; i < 5; i++) {
       p.hand.push(game.deck.pop()!);
     }
@@ -829,6 +954,35 @@ function isValidMove(game: GameState, card: Card, topCard: Card): boolean {
   }
 
   return suit === effectiveSuit || rank === topRank;
+}
+
+function checkGameEnd(game: GameState, player: Player) {
+  if (player.hand.length === 0) {
+    player.isFinished = true;
+    player.finishedRank = game.players.filter(p => p.isFinished).length;
+    if (player.finishedRank === 1) {
+      player.wins = (player.wins || 0) + 1;
+      game.winner = player.id;
+    }
+    addEvent(game, 'FINISH', player.id, undefined, `${player.name} finished in place ${player.finishedRank}!`);
+    
+    const activePlayers = game.players.filter(p => !p.isFinished);
+    if (activePlayers.length <= 1) {
+      game.status = 'finished';
+      const loser = activePlayers[0];
+      if (loser) {
+        game.loser = loser.id;
+        addEvent(game, 'GAME_END', loser.id, undefined, `${loser.name} lost the game!`);
+      } else {
+        game.loser = player.id;
+        addEvent(game, 'GAME_END', player.id, undefined, `Game over!`);
+      }
+    } else {
+      nextPlayer(game);
+    }
+  } else {
+    nextPlayer(game);
+  }
 }
 
 function handleSpecialCard(game: GameState, card: Card, playerId: string, requestedSuit?: Suit, requestedRank?: Rank) {
