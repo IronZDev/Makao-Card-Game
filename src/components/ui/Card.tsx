@@ -8,11 +8,14 @@ interface CardProps {
   card: CardType;
   onClick?: () => void;
   isPlayable?: boolean;
+  isSelected?: boolean;
   isHidden?: boolean;
   key?: React.Key;
+  style?: React.CSSProperties;
+  rotation?: number;
 }
 
-export const Card = ({ card, onClick, isPlayable, isHidden }: CardProps) => {
+export const Card = ({ card, onClick, isPlayable, isSelected, isHidden, style, rotation }: CardProps) => {
   if (isHidden) {
     return (
       <div className="w-16 h-24 md:w-24 md:h-36 bg-indigo-800 rounded-lg border-2 border-white/20 shadow-lg flex items-center justify-center overflow-hidden relative">
@@ -27,11 +30,16 @@ export const Card = ({ card, onClick, isPlayable, isHidden }: CardProps) => {
   if (card.rank === 'Joker') {
     return (
       <motion.div
+        layoutId={card.id}
+        initial={{ scale: 0.8, opacity: 0, rotate: rotation || 0 }}
+        animate={{ scale: 1, opacity: 1, rotate: rotation || 0 }}
+        exit={{ scale: 0.8, opacity: 0 }}
         whileHover={isPlayable ? { y: -20, scale: 1.05 } : {}}
         onClick={isPlayable ? onClick : undefined}
+        style={style}
         className={`
           w-16 h-24 md:w-24 md:h-36 bg-slate-900 rounded-lg border shadow-md flex flex-col p-1 md:p-2 relative select-none overflow-hidden
-          ${isPlayable ? 'ring-4 ring-emerald-400 ring-offset-2 cursor-pointer' : 'cursor-default'}
+          ${isSelected ? 'ring-4 ring-yellow-400 ring-offset-2 shadow-[0_0_20px_rgba(250,204,21,0.6)] cursor-pointer' : isPlayable ? 'ring-4 ring-emerald-400 ring-offset-2 cursor-pointer' : 'cursor-default'}
           text-indigo-400
         `}
       >
@@ -63,11 +71,16 @@ export const Card = ({ card, onClick, isPlayable, isHidden }: CardProps) => {
 
   return (
     <motion.div
+      layoutId={card.id}
+      initial={{ scale: 0.8, opacity: 0, rotate: rotation || 0 }}
+      animate={{ scale: 1, opacity: 1, rotate: rotation || 0 }}
+      exit={{ scale: 0.8, opacity: 0 }}
       whileHover={isPlayable ? { y: -20, scale: 1.05 } : {}}
       onClick={isPlayable ? onClick : undefined}
+      style={style}
       className={`
         w-16 h-24 md:w-24 md:h-36 bg-white rounded-lg border shadow-md flex flex-col p-1 md:p-2 relative select-none
-        ${isPlayable ? 'ring-4 ring-emerald-400 ring-offset-2 cursor-pointer' : 'cursor-default'}
+        ${isSelected ? 'ring-4 ring-yellow-400 ring-offset-2 shadow-[0_0_20px_rgba(250,204,21,0.6)] cursor-pointer' : isPlayable ? 'ring-4 ring-emerald-400 ring-offset-2 cursor-pointer' : 'cursor-default'}
         ${isRed ? 'text-red-600' : 'text-slate-900'}
       `}
     >

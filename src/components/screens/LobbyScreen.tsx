@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, Bot, CheckCircle2, Trash2, Plus, Trophy, LogOut } from 'lucide-react';
 import { GameState, Player, ClientMessage } from '../../types';
+import { LeaveConfirmModal } from '../game/LeaveConfirmModal';
 
 interface Props {
   gameState: GameState;
@@ -103,41 +104,13 @@ export const LobbyScreen = ({ gameState, playerId, sendMessage }: Props) => {
 
       <AnimatePresence>
         {showLeaveConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-800 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-left"
-            >
-              <h3 className="text-xl font-bold text-white mb-2">Leave Room?</h3>
-              <p className="text-slate-300 mb-6 text-sm">
-                Are you sure you want to leave the room?
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowLeaveConfirm(false)}
-                  className="px-4 py-2 rounded-lg font-bold text-slate-300 hover:bg-white/10 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setShowLeaveConfirm(false);
-                    sendMessage({ type: 'LEAVE_ROOM' });
-                  }}
-                  className="px-4 py-2 rounded-lg font-bold bg-red-600 hover:bg-red-500 text-white transition-colors"
-                >
-                  Leave Room
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <LeaveConfirmModal 
+            onCancel={() => setShowLeaveConfirm(false)} 
+            onConfirm={() => {
+              setShowLeaveConfirm(false);
+              sendMessage({ type: 'LEAVE_ROOM' });
+            }} 
+          />
         )}
       </AnimatePresence>
     </div>

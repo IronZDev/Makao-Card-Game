@@ -86,7 +86,10 @@ export default function App() {
             <div className="absolute top-0 right-0 w-4 h-4 bg-red-500 rotate-45 translate-x-2 -translate-y-2"></div>
           </div>
           <div>
-            <h2 className="text-xl font-black tracking-tighter uppercase italic leading-none">Makao</h2>
+            <h2 className="text-xl font-black tracking-tighter uppercase italic leading-none flex items-baseline gap-2">
+              Makao
+              <span className="text-[10px] text-slate-400 font-mono font-normal">v1.1.0</span>
+            </h2>
             <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest mt-1">Room: {gameState?.roomId}</p>
           </div>
         </div>

@@ -21,6 +21,7 @@ export const GameHistory = ({ events, isOpen, onClose }: Props) => {
       case 'PENALTY': return <AlertCircle className="w-4 h-4 text-red-500" />;
       case 'GAME_START': return <Flag className="w-4 h-4 text-indigo-400" />;
       case 'GAME_END': return <Trophy className="w-4 h-4 text-yellow-400" />;
+      case 'FINISH': return <Trophy className="w-4 h-4 text-yellow-500" />;
       case 'PLAYER_JOINED': return <User className="w-4 h-4 text-emerald-400" />;
       case 'PLAYER_LEFT': return <User className="w-4 h-4 text-slate-500" />;
       case 'TURN_SKIPPED': return <SkipForward className="w-4 h-4 text-orange-400" />;
@@ -112,6 +113,7 @@ export const GameHistory = ({ events, isOpen, onClose }: Props) => {
                         {event.type === 'PENALTY' && <span className="text-red-400">{event.details}</span>}
                         {event.type === 'GAME_START' && <span className="text-indigo-400">{event.details}</span>}
                         {event.type === 'GAME_END' && <span className="text-yellow-400 font-bold">{event.details}</span>}
+                        {event.type === 'FINISH' && <span className="text-yellow-500 font-bold">{event.details}</span>}
                         {event.type === 'PLAYER_JOINED' && <span className="text-emerald-400">{event.details}</span>}
                         {event.type === 'PLAYER_LEFT' && <span className="text-slate-500">{event.details}</span>}
                         {event.type === 'TURN_SKIPPED' && <span className="text-orange-400">{event.details}</span>}

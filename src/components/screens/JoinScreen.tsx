@@ -28,7 +28,10 @@ export const JoinScreen = ({ onJoin, error }: Props) => {
             <Spade className="w-12 h-12 text-white relative z-10" />
             <div className="absolute top-0 right-0 w-8 h-8 bg-red-500 rotate-45 translate-x-4 -translate-y-4"></div>
           </div>
-          <h1 className="text-4xl font-black tracking-tighter uppercase italic">Makao</h1>
+          <h1 className="text-4xl font-black tracking-tighter uppercase italic flex items-baseline gap-2">
+            Makao
+            <span className="text-sm text-slate-400 font-mono font-normal not-italic">v1.1.0</span>
+          </h1>
           <p className="text-slate-400 text-sm mt-2">Multiplayer Card Game</p>
         </div>
 

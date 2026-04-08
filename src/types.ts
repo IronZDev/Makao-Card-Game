@@ -46,7 +46,7 @@ export interface GameEvent {
   timestamp: number;
   playerId?: string;
   playerName?: string;
-  type: 'PLAY_CARDS' | 'DRAW_CARDS' | 'PASS_TURN' | 'MAKAO' | 'STOP_MAKAO' | 'PENALTY' | 'GAME_START' | 'GAME_END' | 'PLAYER_JOINED' | 'PLAYER_LEFT' | 'TURN_SKIPPED';
+  type: 'PLAY_CARDS' | 'DRAW_CARDS' | 'PASS_TURN' | 'MAKAO' | 'STOP_MAKAO' | 'PENALTY' | 'GAME_START' | 'GAME_END' | 'PLAYER_JOINED' | 'PLAYER_LEFT' | 'TURN_SKIPPED' | 'FINISH';
   cards?: Card[];
   details?: string;
 }
