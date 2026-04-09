@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { RotateCcw, AlertCircle, SkipForward } from 'lucide-react';
 import { GameState } from '../../types';
 import { Card } from '../ui/Card';
@@ -39,8 +39,8 @@ export const CenterPile: React.FC<CenterPileProps> = ({
       </div>
 
       {/* Discard Pile */}
-      <div className="relative">
-        <AnimatePresence mode="popLayout">
+      <div className="relative w-16 h-24 md:w-24 md:h-36">
+        <AnimatePresence>
           {gameState.discardPile.slice(-3).map((card, i) => {
             // Deterministic rotation based on card id to prevent moving on every render
             const rotation = (card.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 20) - 10;
@@ -50,7 +50,7 @@ export const CenterPile: React.FC<CenterPileProps> = ({
                 card={card} 
                 isPlayable={false} 
                 rotation={rotation}
-                style={{ position: i === 0 ? 'relative' : 'absolute', top: 0, left: 0 }}
+                style={{ position: 'absolute', top: 0, left: 0 }}
               />
             );
           })}

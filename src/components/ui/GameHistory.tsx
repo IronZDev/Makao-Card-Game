@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { History, X, User, Bot, Play, Download, SkipForward, AlertCircle, Trophy, Flag } from 'lucide-react';
+import { History, X, User, Play, Download, SkipForward, AlertCircle, Trophy, Flag } from 'lucide-react';
 import { GameEvent, Card as CardType } from '../../types';
 import { SuitIcon } from './SuitIcon';
 

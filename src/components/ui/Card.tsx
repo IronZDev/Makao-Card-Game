@@ -30,7 +30,6 @@ export const Card = ({ card, onClick, isPlayable, isSelected, isHidden, style, r
   if (card.rank === 'Joker') {
     return (
       <motion.div
-        layoutId={card.id}
         initial={{ scale: 0.8, opacity: 0, rotate: rotation || 0 }}
         animate={{ scale: 1, opacity: 1, rotate: rotation || 0 }}
         exit={{ scale: 0.8, opacity: 0 }}
@@ -71,7 +70,6 @@ export const Card = ({ card, onClick, isPlayable, isSelected, isHidden, style, r
 
   return (
     <motion.div
-      layoutId={card.id}
       initial={{ scale: 0.8, opacity: 0, rotate: rotation || 0 }}
       animate={{ scale: 1, opacity: 1, rotate: rotation || 0 }}
       exit={{ scale: 0.8, opacity: 0 }}

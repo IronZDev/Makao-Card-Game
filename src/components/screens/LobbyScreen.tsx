@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Users, Bot, CheckCircle2, Trash2, Plus, Trophy, LogOut } from 'lucide-react';
-import { GameState, Player, ClientMessage } from '../../types';
+import { GameState, ClientMessage } from '../../types';
 import { LeaveConfirmModal } from '../game/LeaveConfirmModal';
 
 interface Props {

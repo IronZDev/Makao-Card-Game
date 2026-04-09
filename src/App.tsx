@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Spade, Settings } from 'lucide-react';
 
 import { useGameSocket } from './hooks/useGameSocket';
+import { usePlayCards } from './hooks/usePlayCards';
 import { JoinScreen } from './components/screens/JoinScreen';
 import { LobbyScreen } from './components/screens/LobbyScreen';
 import { GameScreen } from './components/screens/GameScreen';
@@ -11,57 +12,21 @@ import { SettingsModal } from './components/modals/SettingsModal';
 import { SuitPickerModal } from './components/modals/SuitPickerModal';
 import { RankPickerModal } from './components/modals/RankPickerModal';
 import { JokerPickerModal } from './components/modals/JokerPickerModal';
-import { Rank, Suit, ALL_RANKS } from './types';
+import { ALL_RANKS } from './types';
 
 export default function App() {
-  const { socket, gameState, playerId, isJoined, error, connect, sendMessage } = useGameSocket();
-  
+  const { gameState, playerId, isJoined, error, connect, sendMessage } = useGameSocket();
   const [showSettings, setShowSettings] = useState(false);
-  const [showSuitPicker, setShowSuitPicker] = useState(false);
-  const [showRankPicker, setShowRankPicker] = useState(false);
-  const [showJokerPicker, setShowJokerPicker] = useState(false);
-  const [pendingCardIds, setPendingCardIds] = useState<string[]>([]);
-  const [pendingJokerValue, setPendingJokerValue] = useState<{rank: Rank, suit: Suit} | null>(null);
-
-  const handlePlayCards = (cardIds: string[]) => {
-    const currentPlayer = gameState?.players.find(p => p.id === playerId);
-    if (!currentPlayer || cardIds.length === 0) return;
-    
-    const cards = cardIds.map(id => currentPlayer.hand.find(c => c.id === id)).filter(Boolean);
-    if (cards.length === 0) return;
-    
-    // Find the rank of the group (ignoring Jokers)
-    const nonJoker = cards.find(c => c?.rank !== 'Joker');
-    const groupRank = nonJoker ? nonJoker?.rank : 'Joker';
-
-    if (groupRank === 'Joker') {
-      setPendingCardIds(cardIds);
-      setShowJokerPicker(true);
-      return;
-    }
-
-    proceedWithPlay(cardIds, groupRank);
-  };
-
-  const proceedWithPlay = (cardIds: string[], effectiveRank: Rank, jokerValue?: {rank: Rank, suit: Suit}) => {
-    if (effectiveRank === 'A') {
-      setPendingCardIds(cardIds);
-      if (jokerValue) setPendingJokerValue(jokerValue);
-      setShowSuitPicker(true);
-    } else if (effectiveRank === 'J') {
-      setPendingCardIds(cardIds);
-      if (jokerValue) setPendingJokerValue(jokerValue);
-      setShowRankPicker(true);
-    } else {
-      sendMessage({ 
-        type: 'PLAY_CARDS', 
-        cardIds, 
-        jokerRank: jokerValue?.rank, 
-        jokerSuit: jokerValue?.suit 
-      });
-      setPendingJokerValue(null);
-    }
-  };
+  
+  const {
+    handlePlayCards,
+    showSuitPicker,
+    showRankPicker,
+    showJokerPicker,
+    handleSuitSelect,
+    handleRankSelect,
+    handleJokerSelect,
+  } = usePlayCards(gameState, playerId, sendMessage);
 
   if (!isJoined) {
     return <JoinScreen onJoin={connect} error={error} />;
@@ -131,41 +96,11 @@ export default function App() {
         )}
 
         {showSuitPicker && (
-          <SuitPickerModal 
-            onSelect={(suit) => {
-              if (pendingCardIds.length > 0) {
-                sendMessage({ 
-                  type: 'PLAY_CARDS', 
-                  cardIds: pendingCardIds, 
-                  requestedSuit: suit,
-                  jokerRank: pendingJokerValue?.rank,
-                  jokerSuit: pendingJokerValue?.suit
-                });
-                setPendingCardIds([]);
-                setPendingJokerValue(null);
-                setShowSuitPicker(false);
-              }
-            }} 
-          />
+          <SuitPickerModal onSelect={handleSuitSelect} />
         )}
 
         {showRankPicker && (
-          <RankPickerModal 
-            onSelect={(rank) => {
-              if (pendingCardIds.length > 0) {
-                sendMessage({ 
-                  type: 'PLAY_CARDS', 
-                  cardIds: pendingCardIds, 
-                  requestedRank: rank,
-                  jokerRank: pendingJokerValue?.rank,
-                  jokerSuit: pendingJokerValue?.suit
-                });
-                setPendingCardIds([]);
-                setPendingJokerValue(null);
-                setShowRankPicker(false);
-              }
-            }} 
-          />
+          <RankPickerModal onSelect={handleRankSelect} />
         )}
 
         {showJokerPicker && (
@@ -178,12 +113,7 @@ export default function App() {
                   )
                 : []
             }
-            onSelect={(rank, suit) => {
-              if (pendingCardIds.length > 0) {
-                setShowJokerPicker(false);
-                proceedWithPlay(pendingCardIds, rank, { rank, suit });
-              }
-            }}
+            onSelect={handleJokerSelect}
           />
         )}
       </AnimatePresence>
